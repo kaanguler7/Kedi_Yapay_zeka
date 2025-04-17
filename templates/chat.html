@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Éćlabré Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chat-container { max-width: 800px; margin: auto; }
+        .message { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .Müşteri { background-color: #e0f7fa; text-align: right; }
+        .Tuncay\ Lore, .Sistem, .Éćlabré { background-color: #f1f1f1; text-align: left; }
+        .sender { font-weight: bold; }
+        form { margin-top: 20px; }
+        input[type="text"] { width: 70%; padding: 10px; }
+        input[type="submit"], button { padding: 10px 20px; margin-left: 10px; cursor: pointer; }
+
+        #spinner {
+            display: none;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .loader {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Éćlabré Chat</h2>
+        <div id="chat-box">
+            {% for entry in conversation %}
+                <div class="message {{ entry.sender|replace(' ', '\\ ') }}">
+                    <div class="sender">{{ entry.sender }}:</div>
+                    <div class="text">{{ entry.message }}</div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Yazılı Mesaj Formu -->
+        <form id="chat-form" method="post" action="{{ url_for('chat') }}">
+            <input type="text" name="user_input" placeholder="Sorunuzu buraya yazın" autofocus autocomplete="off" required>
+            <input type="submit" value="Gönder">
+        </form>
+
+        <!-- 🎤 Sesli Mesaj Butonu -->
+        <form id="voice-form" method="post" action="{{ url_for('voice') }}">
+            <button type="submit">🎤 Mikrofona Konuş</button>
+        </form>
+
+        <!-- Spinner / Bekleme Animasyonu -->
+        <div id="spinner">
+            <div class="loader"></div>
+            <span>Lütfen bekleyiniz...</span>
+        </div>
+    </div>
+
+    <script>
+        const chatForm = document.getElementById("chat-form");
+        const voiceForm = document.getElementById("voice-form");
+        const spinner = document.getElementById("spinner");
+
+        chatForm.addEventListener("submit", function () {
+            spinner.style.display = "block";
+        });
+
+        voiceForm.addEventListener("submit", function () {
+            spinner.style.display = "block";
+        });
+    </script>
+</body>
+</html>
