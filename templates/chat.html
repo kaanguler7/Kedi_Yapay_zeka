@@ -32,6 +32,10 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .typing-message {
+            color: gray;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -44,17 +48,19 @@
                     <div class="text">{{ entry.message }}</div>
                 </div>
             {% endfor %}
+            <div id="typing-indicator" class="typing-message" style="display:none;">Yanıt oluşturuluyor...</div>
         </div>
 
         <!-- Yazılı Mesaj Formu -->
         <form id="chat-form" method="post" action="{{ url_for('chat') }}">
+            <label for="kedi">Kedi Seçimi:</label>
+            <select name="kedi" id="kedi" required>
+                <option value="beyaz">🤍 Beyaz Kedi</option>
+                <option value="siyah">🖤 Siyah Kedi</option>
+            </select>
+            <br><br>
             <input type="text" name="user_input" placeholder="Sorunuzu buraya yazın" autofocus autocomplete="off" required>
             <input type="submit" value="Gönder">
-        </form>
-
-        <!-- 🎤 Sesli Mesaj Butonu -->
-        <form id="voice-form" method="post" action="{{ url_for('voice') }}">
-            <button type="submit">🎤 Mikrofona Konuş</button>
         </form>
 
         <!-- Spinner / Bekleme Animasyonu -->
@@ -66,15 +72,12 @@
 
     <script>
         const chatForm = document.getElementById("chat-form");
-        const voiceForm = document.getElementById("voice-form");
         const spinner = document.getElementById("spinner");
+        const typingIndicator = document.getElementById("typing-indicator");
 
         chatForm.addEventListener("submit", function () {
             spinner.style.display = "block";
-        });
-
-        voiceForm.addEventListener("submit", function () {
-            spinner.style.display = "block";
+            typingIndicator.style.display = "block";
         });
     </script>
 </body>
