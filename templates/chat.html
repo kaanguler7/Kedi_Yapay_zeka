@@ -1,84 +1,87 @@
 ﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <title>Éćlabré Chat</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .chat-container { max-width: 800px; margin: auto; }
-        .message { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-        .Müşteri { background-color: #e0f7fa; text-align: right; }
-        .Tuncay\ Lore, .Sistem, .Éćlabré { background-color: #f1f1f1; text-align: left; }
-        .sender { font-weight: bold; }
-        form { margin-top: 20px; }
-        input[type="text"] { width: 70%; padding: 10px; }
-        input[type="submit"], button { padding: 10px 20px; margin-left: 10px; cursor: pointer; }
-
-        #spinner {
-            display: none;
-            margin-top: 10px;
-            text-align: center;
-        }
-        .loader {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .typing-message {
-            color: gray;
-            font-style: italic;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Éćlabré Chat</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .chat-container { max-width: 800px; margin: auto; }
+    .message { padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+    .Kullanıcı { background-color: #e0f7fa; text-align: right; }
+    .Éćlabré, .Sistem { background-color: #f1f1f1; text-align: left; }
+    .sender { font-weight: bold; }
+    input[type="text"] { width: 70%; padding: 10px; }
+    select, input[type="submit"] { padding: 10px 15px; margin-top: 5px; }
+    .typing-message { color: gray; font-style: italic; display: none; margin-top: 10px; }
+  </style>
 </head>
 <body>
-    <div class="chat-container">
-        <h2>Éćlabré Chat</h2>
-        <div id="chat-box">
-            {% for entry in conversation %}
-                <div class="message {{ entry.sender|replace(' ', '\\ ') }}">
-                    <div class="sender">{{ entry.sender }}:</div>
-                    <div class="text">{{ entry.message }}</div>
-                </div>
-            {% endfor %}
-            <div id="typing-indicator" class="typing-message" style="display:none;">Yanıt oluşturuluyor...</div>
+  <div class="chat-container">
+    <h2>Éćlabré Chat</h2>
+    <div id="chat-box">
+      {% for entry in conversation %}
+        <div class="message {{ entry.sender }}">
+          <div class="sender">{{ entry.sender }}:</div>
+          <div class="text">{{ entry.message }}</div>
         </div>
-
-        <!-- Yazılı Mesaj Formu -->
-        <form id="chat-form" method="post" action="{{ url_for('chat') }}">
-            <label for="kedi">Kedi Seçimi:</label>
-            <select name="kedi" id="kedi" required>
-                <option value="beyaz">🤍 Beyaz Kedi</option>
-                <option value="siyah">🖤 Siyah Kedi</option>
-            </select>
-            <br><br>
-            <input type="text" name="user_input" placeholder="Sorunuzu buraya yazın" autofocus autocomplete="off" required>
-            <input type="submit" value="Gönder">
-        </form>
-
-        <!-- Spinner / Bekleme Animasyonu -->
-        <div id="spinner">
-            <div class="loader"></div>
-            <span>Lütfen bekleyiniz...</span>
-        </div>
+      {% endfor %}
     </div>
 
-    <script>
-        const chatForm = document.getElementById("chat-form");
-        const spinner = document.getElementById("spinner");
-        const typingIndicator = document.getElementById("typing-indicator");
+    <div id="typing-indicator" class="typing-message">Yanıt oluşturuluyor...</div>
 
-        chatForm.addEventListener("submit", function () {
-            spinner.style.display = "block";
-            typingIndicator.style.display = "block";
-        });
-    </script>
+    <form id="chat-form">
+      <label for="kedi">Kedi Seçimi:</label>
+      <select name="kedi" id="kedi" required>
+        <option value="beyaz">🤍 Beyaz Kedi</option>
+        <option value="siyah">🖤 Siyah Kedi</option>
+      </select><br><br>
+
+      <input type="text" id="user_input" name="user_input" placeholder="Sorunuzu buraya yazın" autocomplete="off" required>
+      <input type="submit" value="Gönder">
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById("chat-form");
+    const chatBox = document.getElementById("chat-box");
+    const typing = document.getElementById("typing-indicator");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const input = document.getElementById("user_input");
+      const kedi = document.getElementById("kedi").value;
+      const mesaj = input.value.trim();
+      if (!mesaj) return;
+
+      // Kullanıcı mesajını hemen göster
+      chatBox.innerHTML += `
+        <div class="message Kullanıcı">
+          <div class="sender">Kullanıcı:</div>
+          <div class="text">${mesaj}</div>
+        </div>
+      `;
+
+      input.value = "";
+      typing.style.display = "block";
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ user_input: mesaj, kedi: kedi })
+      })
+      .then(res => res.text())
+      .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+        const newMessages = doc.querySelectorAll("#chat-box .message");
+        chatBox.innerHTML = "";
+        newMessages.forEach(m => chatBox.appendChild(m.cloneNode(true)));
+        typing.style.display = "none";
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    });
+  </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ import os
 import contextlib
 import emoji
 from google.generativeai import GenerativeModel, configure
+from utils import temizle_emoji, karakter_bilgisi
 
 # log kayıtlarını bastırma
 with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
@@ -18,7 +19,7 @@ generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 1024,
+    "max_output_tokens": 8192,
 }
 
 # Modeli tanımla
@@ -49,6 +50,7 @@ corporate_text = (
     "\n"
     "Yanıtlar bu kişiliklere göre verilecektir. Kullanıcıdan gelen soruya göre karaktere uygun tepki göster.\n"
     "Senin adın Éćlabré Kedi. Cevaplarını Türkçe ver."
+    "Verdiğin cevaplar birz daha kısa ve özet olsun."
 )
 
 chat_session = model.start_chat(history=[])
@@ -57,8 +59,6 @@ conversation = [
     {"sender": "Éćlabré", "message": "Éćlabré Modeline Hoşgeldiniz!"}
 ]
 
-def temizle_emoji(metin):
-    return emoji.replace_emoji(metin, replace='')
 
 @app.route("/", methods=["GET", "POST"])
 def chat():
@@ -69,20 +69,19 @@ def chat():
 
         print(">> Gelen kedi seçimi:", kedi)
         print(">> Kullanıcı mesajı:", user_input)
+        
 
         if user_input.lower() in ["exit", "quit"]:
             conversation.append({"sender": "Sistem", "message": "Sohbet sonlandırıldı."})
             return render_template("chat.html", conversation=conversation)
 
-        # Kullanıcı mesajını doğrudan ekle
+        # Kullanıcı mesajını hemen göster
         conversation.append({"sender": "Kullanıcı", "message": user_input})
+
+        # Yanıt oluşturuluyor mesajı göster
         conversation.append({"sender": "Éćlabré", "message": "Yanıt oluşturuluyor..."})
 
-        if kedi == "beyaz":
-            karakter_bilgi = "Karakter: Beyaz Kedi - iyimser, kültürlü, nazik"
-        else:
-            karakter_bilgi = "Karakter: Siyah Kedi - alaycı, zeki, sivri dilli"
-
+        karakter_bilgi =karakter_bilgisi(kedi)
         combined_input = f"{corporate_text}\n\n{karakter_bilgi}\n\nSoru: {user_input}"
 
         try:
@@ -94,7 +93,10 @@ def chat():
             cevap = f"⚠️ Yanıt oluşturulurken bir hata oluştu: {e}"
 
         # Yanıtı en son mesaja yaz
-        conversation[-1] = {"sender": "Éćlabré", "message": cevap}
+        for i in range(len(conversation) - 1, -1, -1):
+            if conversation[i]["sender"] == "Éćlabré" and conversation[i]["message"] == "Yanıt oluşturuluyor...":
+                conversation[i]["message"] = cevap
+                break
 
     return render_template("chat.html", conversation=conversation)
 
