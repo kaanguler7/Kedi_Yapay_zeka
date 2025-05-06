@@ -21,13 +21,6 @@ generation_config = {
     "top_k": 40,
     "max_output_tokens": 8192,
 }
-
-# Modeli tanımla
-model = GenerativeModel(
-    model_name="gemini-2.5-pro-exp-03-25",
-    generation_config=generation_config
-)
-
 corporate_text = (
     "Aşağıda \"Éćlabré\" adlı kediler için hazırlanmış Yapay Zeka Modeli yer almaktadır.\n"
     "-------------------------------\n"
@@ -49,11 +42,28 @@ corporate_text = (
     "   - Dili keskin ama zayıflara saygılı.\n"
     "\n"
     "Yanıtlar bu kişiliklere göre verilecektir. Kullanıcıdan gelen soruya göre karaktere uygun tepki göster.\n"
-    "Senin adın Éćlabré Kedi. Cevaplarını Türkçe ver."
-    "Verdiğin cevaplar birz daha kısa ve özet olsun."
+    "Senin adın Éćlabré Kedi. Cevaplarını Türkçe ver.\n"
+    "Cevapları sadece seçilen karakterin kişiliğiyle ver. Yanıtlar Türkçe olacak ve karakter tonuna uygun olmalı."
 )
 
-chat_session = model.start_chat(history=[])
+# Modeli tanımla
+model = GenerativeModel(
+    model_name="gemini-2.5-pro-exp-03-25",
+    generation_config=generation_config
+)
+
+
+
+# Sistem talimatını ilk mesaj olarak ekle
+chat_session = model.start_chat(
+    history=[
+        {
+            "role": "user",
+            "parts": [corporate_text]
+        }
+    ]
+)
+
 
 conversation = [
     {"sender": "Éćlabré", "message": "Éćlabré Modeline Hoşgeldiniz!"}
@@ -82,10 +92,10 @@ def chat():
         conversation.append({"sender": "Éćlabré", "message": "Yanıt oluşturuluyor..."})
 
         karakter_bilgi =karakter_bilgisi(kedi)
-        combined_input = f"{corporate_text}\n\n{karakter_bilgi}\n\nSoru: {user_input}"
+        mesaj = f"{karakter_bilgi}\n\nSoru: {user_input}"
 
         try:
-            response = chat_session.send_message(combined_input)
+            response = chat_session.send_message(mesaj)
             cevap = response.text.strip()
             if not cevap:
                 cevap = "Hmm... Bu mesajı yorumlamakta zorlandım 🐾 Daha farklı sorabilir misin?"
