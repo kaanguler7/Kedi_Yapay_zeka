@@ -1,4 +1,4 @@
-# API_Gemini = AIzaSyDpPZ-c_KjJXuCB7bKeUbLUCtIaPGQJzjM
+
 from flask import Flask, render_template, request
 import os
 import contextlib
@@ -109,6 +109,7 @@ def chat():
             cevap = f"⚠️ Yanıt oluşturulurken bir hata oluştu: {e}"
 
         log_message("Éćlabré", cevap, kedi)
+        
 
         # Yanıtı en son mesaja yaz
         for i in range(len(conversation) - 1, -1, -1):
