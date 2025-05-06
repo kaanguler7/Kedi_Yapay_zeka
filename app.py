@@ -5,6 +5,8 @@ import contextlib
 import emoji
 from google.generativeai import GenerativeModel, configure
 from utils import temizle_emoji, karakter_bilgisi
+from chat_logger import log_message
+from dotenv import load_dotenv
 
 # log kayıtlarını bastırma
 with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
@@ -13,7 +15,8 @@ with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
 app = Flask(__name__)
 
 # API anahtarını çağır
-configure(api_key="AIzaSyDpPZ-c_KjJXuCB7bKeUbLUCtIaPGQJzjM")
+load_dotenv()
+configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 generation_config = {
     "temperature": 1,
@@ -87,9 +90,12 @@ def chat():
 
         # Kullanıcı mesajını hemen göster
         conversation.append({"sender": "Kullanıcı", "message": user_input})
+        log_message("Kullanıcı", user_input, kedi)
 
         # Yanıt oluşturuluyor mesajı göster
         conversation.append({"sender": "Éćlabré", "message": "Yanıt oluşturuluyor..."})
+        
+
 
         karakter_bilgi =karakter_bilgisi(kedi)
         mesaj = f"{karakter_bilgi}\n\nSoru: {user_input}"
@@ -101,6 +107,8 @@ def chat():
                 cevap = "Hmm... Bu mesajı yorumlamakta zorlandım 🐾 Daha farklı sorabilir misin?"
         except Exception as e:
             cevap = f"⚠️ Yanıt oluşturulurken bir hata oluştu: {e}"
+
+        log_message("Éćlabré", cevap, kedi)
 
         # Yanıtı en son mesaja yaz
         for i in range(len(conversation) - 1, -1, -1):
