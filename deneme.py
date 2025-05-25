@@ -1,9 +1,11 @@
-# API_Gemini = AIzaSyDpPZ-c_KjJXuCB7bKeUbLUCtIaPGQJzjM
 from flask import Flask, render_template, request
 import os
 import contextlib
 import emoji
 from google.generativeai import GenerativeModel, configure
+from utils import temizle_emoji, karakter_bilgisi
+from chat_logger import log_message
+from dotenv import load_dotenv
 
 # log kayıtlarını bastırma
 with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
@@ -12,23 +14,18 @@ with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
 app = Flask(__name__)
 
 # API anahtarını çağır
-configure(api_key="AIzaSyDpPZ-c_KjJXuCB7bKeUbLUCtIaPGQJzjM")
+load_dotenv()
+print("🔑 API KEY:", os.getenv("GEMINI_API_KEY"))
+configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 512, #daha hızlı yantı veriri max 512 kelime yazar 
+    "max_output_tokens": 8192,
 }
-
-# Modeli tanımla
-model = GenerativeModel(
-    model_name="gemini-2.5-pro-exp-03-25",
-    generation_config=generation_config
-)
-
 corporate_text = (
-    "Aşağıda 'Éćlabré' adlı kediler için hazırlanmış Yapay Zeka Modeli yer almaktadır.\n"
+    "Aşağıda \"Éćlabré\" adlı kediler için hazırlanmış Yapay Zeka Modeli yer almaktadır.\n"
     "-------------------------------\n"
     "1. Modelin Tanımı:\n"
     "- Doğal Dil İşleme (NLP): Kullanıcının metin tabanlı girişlerini anlamlandırır ve yanıtlar üretir.\n"
@@ -48,46 +45,77 @@ corporate_text = (
     "   - Dili keskin ama zayıflara saygılı.\n"
     "\n"
     "Yanıtlar bu kişiliklere göre verilecektir. Kullanıcıdan gelen soruya göre karaktere uygun tepki göster.\n"
-    "Senin adın Éćlabré Kedi. Cevaplarını Türkçe ver."
+    "Senin adın Éćlabré Kedi. Cevaplarını Türkçe ver.\n"
+    "Cevapları sadece seçilen karakterin kişiliğiyle ver. Yanıtlar Türkçe olacak ve karakter tonuna uygun olmalı."
 )
 
-chat_session = model.start_chat(history=[])
+# Modeli tanımla
+model = GenerativeModel(
+    model_name="gemini-2.5-pro-exp-03-25",
+    generation_config=generation_config
+)
+
+
+
+# Sistem talimatını ilk mesaj olarak ekle
+chat_session = model.start_chat(
+    history=[
+        {
+            "role": "user",
+            "parts": [corporate_text]
+        }
+    ]
+)
+
 
 conversation = [
     {"sender": "Éćlabré", "message": "Éćlabré Modeline Hoşgeldiniz!"}
 ]
 
-def temizle_emoji(metin):
-    return emoji.replace_emoji(metin, replace='')
 
 @app.route("/", methods=["GET", "POST"])
 def chat():
     global conversation
-    kedi = request.form.get("kedi", "beyaz")
-
     if request.method == "POST":
+        kedi = request.form.get("kedi", "beyaz")
         user_input = request.form.get("user_input", "").strip()
+
+        print(">> Gelen kedi seçimi:", kedi)
+        print(">> Kullanıcı mesajı:", user_input)
+        
+
         if user_input.lower() in ["exit", "quit"]:
             conversation.append({"sender": "Sistem", "message": "Sohbet sonlandırıldı."})
             return render_template("chat.html", conversation=conversation)
 
+        # Kullanıcı mesajını hemen göster
         conversation.append({"sender": "Kullanıcı", "message": user_input})
+        log_message("Kullanıcı", user_input, kedi)
 
-        if kedi == "beyaz":
-            karakter_bilgi = "Karakter: Beyaz Kedi - iyimser, kültürlü, nazik"
-        else:
-            karakter_bilgi = "Karakter: Siyah Kedi - alaycı, zeki, sivri dilli"
+        # Yanıt oluşturuluyor mesajı göster
+        conversation.append({"sender": "Éćlabré", "message": "Yanıt oluşturuluyor..."})
+        
 
-        # "Yanıt oluşturuluyor..." mesajı
-        conversation.append({"sender": "Sistem", "message": "Yanıt oluşturuluyor..."})
 
-        combined_input = f"{corporate_text}\n\n{karakter_bilgi}\n\nSoru: {user_input}"
-        response = chat_session.send_message(combined_input)
-        cevap = response.text
+        karakter_bilgi =karakter_bilgisi(kedi)
+        mesaj = f"{karakter_bilgi}\n\nSoru: {user_input}"
 
-        # Geçici sistemi mesajı silip gerçek cevabı göster
-        conversation.pop()  # Yanıt oluşturuluyor...
-        conversation.append({"sender": "Éćlabré", "message": cevap})
+        try:
+            response = chat_session.send_message(mesaj)
+            cevap = response.text.strip()
+            if not cevap:
+                cevap = "Hmm... Bu mesajı yorumlamakta zorlandım 🐾 Daha farklı sorabilir misin?"
+        except Exception as e:
+            cevap = f"⚠️ Yanıt oluşturulurken bir hata oluştu: {e}"
+
+        log_message("Éćlabré", cevap, kedi)
+        
+
+        # Yanıtı en son mesaja yaz
+        for i in range(len(conversation) - 1, -1, -1):
+            if conversation[i]["sender"] == "Éćlabré" and conversation[i]["message"] == "Yanıt oluşturuluyor...":
+                conversation[i]["message"] = cevap
+                break
 
     return render_template("chat.html", conversation=conversation)
 

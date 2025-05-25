@@ -5,24 +5,28 @@ import contextlib
 import emoji
 from google.generativeai import GenerativeModel, configure
 from utils import temizle_emoji, karakter_bilgisi
-from chat_logger import log_message
+from mongo_logger import log_message
 from dotenv import load_dotenv
+import uuid
+from flask import session
 
 # log kayıtlarını bastırma
 with open(os.devnull, 'w') as devnull, contextlib.redirect_stderr(devnull):
     import google.generativeai as genai
-
+    
+load_dotenv()
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET", "my-dev-key")
 
 # API anahtarını çağır
-load_dotenv()
+
 configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 40,
-    "max_output_tokens": 8192,
+    "max_output_tokens": 2048,
 }
 corporate_text = (
     "Aşağıda \"Éćlabré\" adlı kediler için hazırlanmış Yapay Zeka Modeli yer almaktadır.\n"
@@ -51,27 +55,31 @@ corporate_text = (
 
 # Modeli tanımla
 model = GenerativeModel(
-    model_name="gemini-2.5-pro-exp-03-25",
+    model_name="gemini-1.5-flash",
     generation_config=generation_config
 )
 
 
 
-# Sistem talimatını ilk mesaj olarak ekle
-chat_session = model.start_chat(
-    history=[
-        {
-            "role": "user",
-            "parts": [corporate_text]
-        }
-    ]
-)
+# # Sistem talimatını ilk mesaj olarak ekle
+# chat_session = model.start_chat(
+#     history=[
+#         {
+#             "role": "user",
+#             "parts": [corporate_text]
+#         }
+#     ]
+# )
 
 
 conversation = [
     {"sender": "Éćlabré", "message": "Éćlabré Modeline Hoşgeldiniz!"}
 ]
 
+@app.before_request
+def set_session_id():
+    if "session_id" not in session:
+        session["session_id"] = str(uuid.uuid4())
 
 @app.route("/", methods=["GET", "POST"])
 def chat():
@@ -82,7 +90,6 @@ def chat():
 
         print(">> Gelen kedi seçimi:", kedi)
         print(">> Kullanıcı mesajı:", user_input)
-        
 
         if user_input.lower() in ["exit", "quit"]:
             conversation.append({"sender": "Sistem", "message": "Sohbet sonlandırıldı."})
@@ -90,14 +97,23 @@ def chat():
 
         # Kullanıcı mesajını hemen göster
         conversation.append({"sender": "Kullanıcı", "message": user_input})
+        print("🧪 DEBUG: log_message fonksiyonu çağrıldı.")
         log_message("Kullanıcı", user_input, kedi)
 
         # Yanıt oluşturuluyor mesajı göster
         conversation.append({"sender": "Éćlabré", "message": "Yanıt oluşturuluyor..."})
-        
 
+        # 🆕 Her POST isteğinde yeni chat_session oluştur
+        chat_session = model.start_chat(
+            history=[
+                {
+                    "role": "user",
+                    "parts": [corporate_text]
+                }
+            ]
+        )
 
-        karakter_bilgi =karakter_bilgisi(kedi)
+        karakter_bilgi = karakter_bilgisi(kedi)
         mesaj = f"{karakter_bilgi}\n\nSoru: {user_input}"
 
         try:
@@ -109,7 +125,6 @@ def chat():
             cevap = f"⚠️ Yanıt oluşturulurken bir hata oluştu: {e}"
 
         log_message("Éćlabré", cevap, kedi)
-        
 
         # Yanıtı en son mesaja yaz
         for i in range(len(conversation) - 1, -1, -1):
@@ -118,6 +133,14 @@ def chat():
                 break
 
     return render_template("chat.html", conversation=conversation)
+
+@app.route("/test-gemini")
+def test_gemini():
+    try:
+        response = model.generate_content("Selam! Test için buradayım.")
+        return f"<h2>✅ Gemini Yanıtı:</h2><p>{response.text}</p>"
+    except Exception as e:
+        return f"<h2>⚠️ Hata oluştu:</h2><p>{str(e)}</p>"
 
 if __name__ == "__main__":
     app.run(debug=True)
